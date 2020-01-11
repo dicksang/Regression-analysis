@@ -1,6 +1,7 @@
 library(dplyr)
 library(MASS)
 library(olsrr)
+library(car)
 
 rm(list = ls())
 
@@ -100,13 +101,44 @@ plot(final_model2) # plot 1 is fitted vs residual, plot 2 is QQ plot: depart fro
 ols_test_breusch_pagan(final_model2)
 
 #--- 2b. By Adjusted sales (No variables are significant - Not studied further)
-# model <- glm(Adj_Sales ~ WC_Normalize_Functional + 
-#                          WC_Normalize_Experimental + 
-#                          WC_Normalize_Symbolic+ 
-#                          WC_Normalize_Cost, data = data)
-# 
-# null_model <- glm(Adj_Sales ~ 1, data = data)
-# 
-# fwd_model <- stepAIC(null_model, direction="forward",scope=list(upper=model,lower=null_model))
-# 
-# summary(fwd_model)
+model3 <- glm(Adj_Sales ~ WC_Normalize_Functional +
+                         WC_Normalize_Experimental +
+                         # WC_Normalize_Symbolic+
+                         WC_Normalize_Cost +
+                         WC_Normalize_Functional : WC_Normalize_Optimistic+
+                         WC_Normalize_Experimental : WC_Normalize_Optimistic+
+                         WC_Normalize_Symbolic : WC_Normalize_Optimistic+
+                         WC_Normalize_Cost : WC_Normalize_Optimistic+
+                         WC_Normalize_Functional : WC_Normalize_Affective+
+                         WC_Normalize_Experimental : WC_Normalize_Affective
+                         # WC_Normalize_Symbolic : WC_Normalize_Affective+
+                         # WC_Normalize_Cost : WC_Normalize_Affective
+             , data = data)
+
+null_model <- glm(Adj_Sales ~ 1, data = data)
+
+final_model3 <- stepAIC(model3, direction="backward")
+
+summary(final_model3)
+##########################################################
+# fine-tune final model
+##########################################################
+final_model3 <- lm(Adj_Sales ~ WC_Normalize_Functional + WC_Normalize_Experimental + 
+                    WC_Normalize_Cost + WC_Normalize_Functional:WC_Normalize_Optimistic + 
+                    WC_Normalize_Cost:WC_Normalize_Optimistic + WC_Normalize_Experimental:WC_Normalize_Affective, 
+                  data = data)
+
+summary(final_model3)
+
+# model assumption - 
+# 1. VIF: 5 being threshold to remove variables
+vif(final_model3)
+
+# 2. residual is normal: pass
+ols_test_normality(final_model3$residuals)$kolmogorv
+
+plot(final_model3$fitted.values, final_model3$residuals)
+plot(final_model3) # plot 1 is fitted vs residual, plot 2 is QQ plot: fairly normal residuals
+
+# 2. Homoskedasticity: pass - variance is constant
+ols_test_breusch_pagan(final_model3)
